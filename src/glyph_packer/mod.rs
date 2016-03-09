@@ -1,8 +1,8 @@
 #[doc(hidden)]
-mod packer;
+pub mod packer;
 mod skyline_packer;
 mod rect;
-mod buffer2d;
+pub mod buffer2d;
 
 pub use self::skyline_packer::SkylinePacker;
 pub use self::rect::Rect;
