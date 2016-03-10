@@ -1,34 +1,29 @@
-use std::io::Result as IoResult;
-use std::path::Path;
+use std::collections::HashMap;
 use std::slice::Chunks;
 
 use super::glyph_packer;
 use super::rusttype;
+use glyph_packer::{Packer, GrowingPacker};
 
 pub struct Font {
     font: rusttype::Font<'static>
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct CharInfo {
+    pub chr: char,
+    pub bounding_box: glyph_packer::Rect,
+    pub post_draw_advance: (f32, f32),
+    pub pre_draw_advance: (f32, f32),
+}
+
+pub struct Atlas {
+    char_info: HashMap<char, CharInfo>
+}
+
 pub struct Bitmap {
     bytes: Vec<u8>,
     width: usize
-}
-
-pub fn load_font<P: AsRef<Path>>(path: P) -> IoResult<Font> {
-    use std::io::Read;
-    use std::fs::File;
-    let mut buf = vec![];
-    try!(try!(File::open(path)).read_to_end(&mut buf));
-    let font_collection = rusttype::FontCollection::from_bytes(buf);
-    Ok(Font {
-        font: font_collection.into_font().unwrap()
-    })
-}
-
-pub fn load_font_from_bytes(bytes: Vec<u8>) -> Font {
-    Font {
-        font: rusttype::FontCollection::from_bytes(bytes).into_font().unwrap()
-    }
 }
 
 impl Bitmap {
@@ -79,32 +74,62 @@ impl glyph_packer::ResizeBuffer for Bitmap {
 }
 
 impl Font {
-    pub fn render_char(&self, chr: char, scale: f32) -> Option<Bitmap> {
+    pub fn new(rusttype_font: rusttype::Font<'static>) -> Font {
+        Font {
+            font: rusttype_font
+        }
+    }
+
+    pub fn render_char(&self, chr: char, scale: f32) -> Option<(CharInfo, Bitmap)> {
         use glyph_packer::Buffer2d;
-        let info = match self.font.glyph(chr) {
+        let glyph = match self.font.glyph(chr) {
             Some(a) => a,
             None => return None,
         };
-        let info = info.scaled(rusttype::Pixels(scale));
-        let info = info.positioned(rusttype::Point { x: 0.0, y:0.0 });
-        let bb = match info.pixel_bounding_box() {
+        let glyph = glyph.scaled(rusttype::Pixels(scale));
+        let glyph = glyph.positioned(rusttype::Point { x: 0.0, y:0.0 });
+        let bb = match glyph.pixel_bounding_box() {
             Some(a) => a,
             None => return None
         };
         let mut out = Bitmap::new(bb.width() as usize, bb.height() as usize);
-        info.draw(|x, y, v| {
+        glyph.draw(|x, y, v| {
             out.set(x, y, (v * 255.0) as u8);
         });
-        Some(out)
+
+        let info = CharInfo {
+            chr: chr,
+            bounding_box: glyph_packer::Rect{
+                x: bb.min.x as u32,
+                y: bb.min.y as u32,
+                w: bb.width() as u32,
+                h: bb.height() as u32
+            },
+            post_draw_advance: (glyph.h_metrics().advance_width, 0.0),
+            pre_draw_advance: (glyph.h_metrics().left_side_bearing, 0.0),
+        };
+
+        Some((info, out))
     }
 
-    pub fn make_atlas<I: Iterator<Item=char>>(&self, i: I, scale: f32, margin: u32, width: usize, height: usize) -> Bitmap {
-        use glyph_packer::{Packer, GrowingPacker};
+    pub fn make_atlas<I: Iterator<Item=char>>(&self, i: I, scale: f32, margin: u32, width: usize, height: usize) -> (Atlas, Bitmap) {
+        let mut atlas = Atlas { char_info: HashMap::new() };
         let mut packer = glyph_packer::SkylinePacker::new(Bitmap::new(width, height));
         packer.set_margin(margin);
-        for c in i.filter_map(|c| self.render_char(c, scale)) {
-            packer.pack_resize(&c, |(ow, oh)| (ow * 2, oh * 2));
+
+        for c in i {
+            if let Some((mut info, rendered)) = self.render_char(c, scale) {
+                let r: glyph_packer::Rect = packer.pack_resize(&rendered, |(ow, oh)| (ow * 2, oh * 2));
+                info.bounding_box = r;
+                atlas.char_info.insert(c, info);
+            }
         }
-        packer.into_buf()
+        (atlas, packer.into_buf())
+    }
+}
+
+impl Atlas {
+    pub fn info(&self, c: char) -> Option<CharInfo> {
+        self.char_info.get(&c).cloned()
     }
 }
