@@ -53,6 +53,12 @@ impl <T> FaceCache<T> {
         Ok(())
     }
 
+    pub fn drawing_commands_prepared<F, E>(&mut self, s: &str, f: F) -> Result<Vec<DrawCommand<T>>, E>
+    where F: Fn(Bitmap) -> Result<T, E> {
+        try!(self.prepare_string(s, f));
+        Ok(self.drawing_commands(s))
+    }
+
     pub fn drawing_commands(&self, s: &str) -> Vec<DrawCommand<T>> {
         let mut out = Vec::new();
         let mut x = 0.0;
