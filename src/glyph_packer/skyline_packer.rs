@@ -12,6 +12,7 @@ struct Skyline {
     pub w: u32,
 }
 
+/// Contains the state of the skyline packing process
 pub struct SkylinePacker<B: Buffer2d> {
     buf: B,
     width: u32,

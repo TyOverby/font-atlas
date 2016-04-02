@@ -4,4 +4,5 @@ version = "0.1.2"
 authors = ["Ty Overby <ty@pre-alpha.com>"]
 
 [dependencies]
-rusttype = "0.1.0"
+rusttype = "0.2.0"
+void = "1.0.*"

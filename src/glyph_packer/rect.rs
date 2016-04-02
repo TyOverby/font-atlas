@@ -1,3 +1,4 @@
+/// A rectangle
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub struct Rect {
     pub x: u32,
@@ -7,6 +8,8 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// Create a new rectangle given the top-left corner and
+    /// width + height
     pub fn new(x: u32, y: u32, w: u32, h: u32) -> Rect {
         Rect {
             x: x,
@@ -16,6 +19,7 @@ impl Rect {
         }
     }
 
+    /// Create a new rectangle from a pair of points
     pub fn new_with_points(x1: u32, y1: u32, x2: u32, y2: u32) -> Rect {
         Rect {
             x: x1,
@@ -25,31 +29,37 @@ impl Rect {
         }
     }
 
+    /// Return the position of the top edge of the rectangle
     #[inline(always)]
     pub fn top(&self) -> u32 {
         self.y
     }
 
+    /// Return the position of the bottom edge of the rectangle
     #[inline(always)]
     pub fn bottom(&self) -> u32 {
         self.y + self.h
     }
 
+    /// Return the position of the left edge of the rectangle
     #[inline(always)]
     pub fn left(&self) -> u32 {
         self.x
     }
 
+    /// Return the position of the right edge of the rectangle
     #[inline(always)]
     pub fn right(&self) -> u32 {
         self.x + self.w
     }
 
+    /// Return the area of the rectangle
     #[inline(always)]
     pub fn area(&self) -> u32 {
         self.w * self.h
     }
 
+    /// Returns true if this rectangle intersects another rectangle
     pub fn intersects(&self, other: &Rect) -> bool {
         self.left() < other.right() &&
         self.right() > other.left() &&
@@ -57,6 +67,7 @@ impl Rect {
         self.bottom() > other.top()
     }
 
+    /// Returns true if this rectangle completely contains another rectangle
     pub fn contains(&self, other: &Rect) -> bool {
         self.left() <= other.left() &&
         self.right() >= other.right() &&
@@ -64,6 +75,7 @@ impl Rect {
         self.bottom() >= other.bottom()
     }
 
+    /// Returns true if this rectangle completely contains another rectangle
     pub fn crop(&self, other: &Rect) -> Vec<Rect> {
         if !self.intersects(other) {
             return vec!(*self);
