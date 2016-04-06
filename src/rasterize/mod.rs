@@ -13,6 +13,12 @@ pub struct Font {
     font: rusttype::Font<'static>
 }
 
+impl ::std::fmt::Debug for Font {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
+        formatter.write_str("Font()")
+    }
+}
+
 /// Information about a character from a font rendered
 /// at a specific scale.
 #[derive(Debug, Copy, Clone)]
@@ -32,6 +38,7 @@ pub struct CharInfo {
 }
 
 /// A mapping from chars to CharInfo.
+#[derive(Debug)]
 pub struct Atlas {
     char_info: HashMap<char, CharInfo>
 }
@@ -39,6 +46,7 @@ pub struct Atlas {
 /// A rectangular 2d-array of u8 where
 /// the values 0 through 255 represent
 /// shades of grey.
+#[derive(Debug)]
 pub struct Bitmap {
     bytes: Vec<u8>,
     width: usize
@@ -182,6 +190,14 @@ impl Font {
                 let r: glyph_packer::Rect = packer.pack_resize(&rendered, |(ow, oh)| (ow * 2, oh * 2));
                 info.bounding_box = r;
                 atlas.char_info.insert(c, info);
+            } else if c == ' ' {
+                let (mut info, _) = self.render_char('-', scale).unwrap();
+                let empty_bitmap = Bitmap::new(1, 1);
+                let r = packer.pack_resize(&empty_bitmap, |(ow, oh)| (ow * 2, oh * 2));
+                info.bounding_box = r;
+                atlas.char_info.insert(c, info);
+            } else {
+                panic!("can not renderer char {}", c);
             }
         }
         (atlas, packer.into_buf())

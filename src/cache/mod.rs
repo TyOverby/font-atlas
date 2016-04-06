@@ -10,12 +10,14 @@ use void::Void;
 /// The basic usage for a FontCache is to load all of the fonts that
 /// you plan on using into the FontCache, then call `create_face` for
 /// each of the font/size combinations that you see yourself using.
+#[derive(Debug)]
 pub struct FontCache<T> {
     base_font: HashMap<String, Font>,
     cached: Vec<(String, f32, FaceCache<T>)>,
 }
 
 /// A cache for a single font/size pairing.
+#[derive(Debug)]
 pub struct FaceCache<T> {
     font: Font,
     bitmap: T,
@@ -27,6 +29,7 @@ pub struct FaceCache<T> {
 
 /// A command instructing the user on how to draw a
 /// single character.
+#[derive(Debug)]
 pub struct DrawCommand<'a, T: 'a> {
     /// The bitmap that contains the character
     pub bitmap: &'a T,
@@ -43,11 +46,11 @@ pub enum FontCacheError<E> {
     /// An error that comes from the bitmap transformation
     UserError(E),
     /// The font has not been loaded
-    NoLoadedFont,
+    NoLoadedFont(String),
     /// A face has not been loaded and then rendered
-    NoRenderedFace,
+    NoRenderedFace(String, f32),
     /// A glyph is missing from the font file
-    MissingGlyph,
+    MissingGlyph(char),
 }
 
 impl <T> FontCache<T> {
@@ -84,7 +87,7 @@ impl <T> FontCache<T> {
                 self.cached.push((name.into(), scale, fc));
                 return Ok(());
             }
-            None => return Err(FontCacheError::NoLoadedFont)
+            None => return Err(FontCacheError::NoLoadedFont(name.into()))
         };
     }
 
@@ -108,7 +111,7 @@ impl <T> FontCache<T> {
     ///
     /// Can fail if the font hasn't been rasterized with `create_face`.
     pub fn drawing_commands(&self, font_name: &str, scale: f32, string: &str) -> Result<Vec<DrawCommand<T>>, FontCacheError<Void>> {
-        let fc = try!(self.get_face_cache(font_name, scale).ok_or(FontCacheError::NoRenderedFace));
+        let fc = try!(self.get_face_cache(font_name, scale).ok_or(FontCacheError::NoRenderedFace(font_name.into(), scale)));
         fc.drawing_commands(string)
     }
 
@@ -201,10 +204,10 @@ impl <T> FaceCache<T> {
                 bitmap = self.missing.get(&c).unwrap().as_ref().unwrap();
                 info = ci;
             } else {
-                return Err(FontCacheError::MissingGlyph);
+                return Err(FontCacheError::MissingGlyph(c));
             }
 
-            x += info.pre_draw_advance.0;
+            x += info.bounding_box.w as f32 + info.pre_draw_advance.0;
             y += info.pre_draw_advance.1;
 
             out.push(DrawCommand {
