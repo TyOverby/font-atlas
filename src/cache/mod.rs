@@ -24,7 +24,8 @@ pub struct FaceCache<T> {
     scale: f32,
     atlas: Atlas,
     missing: HashMap<char, Option<T>>,
-    missing_info: HashMap<char, CharInfo>
+    missing_info: HashMap<char, CharInfo>,
+    line_height: f32,
 }
 
 /// A command instructing the user on how to draw a
@@ -142,7 +143,7 @@ impl <T> FaceCache<T> {
     pub fn new<I, F, E>(font: Font, scale: f32, chars: I, f: F) -> Result<FaceCache<T>, E>
     where I: Iterator<Item=char>, F: Fn(Bitmap) -> Result<T, E>
     {
-            let (atlas, bitmap) = font.make_atlas(chars, scale, 3, 256, 256);
+            let (atlas, bitmap, line_height) = font.make_atlas(chars, scale, 3, 256, 256);
             let bitmap = try!(f(bitmap));
             Ok(FaceCache {
                 font: font,
@@ -151,6 +152,7 @@ impl <T> FaceCache<T> {
                 scale: scale,
                 missing: HashMap::new(),
                 missing_info: HashMap::new(),
+                line_height: line_height,
             })
     }
 
@@ -191,9 +193,16 @@ impl <T> FaceCache<T> {
     pub fn drawing_commands(&self, s: &str) -> Result<Vec<DrawCommand<T>>, FontCacheError<Void>> {
         let mut out = Vec::new();
         let mut x = 0.0;
-        let mut y = 0.0;
+        let mut y = self.line_height.floor();
 
         for c in s.chars() {
+            if c == ' ' {
+                if let Some(ci) = self.atlas.info('w').or_else(|| self.missing_info.get(&c).cloned()) {
+                    x += ci.bounding_box.w as f32;
+                    continue;
+                } 
+            }
+
             let bitmap;
             let info;
 
@@ -207,14 +216,18 @@ impl <T> FaceCache<T> {
                 return Err(FontCacheError::MissingGlyph(c));
             }
 
-            x += info.bounding_box.w as f32 + info.pre_draw_advance.0;
+            x += info.pre_draw_advance.0;
             y += info.pre_draw_advance.1;
+
+            let h = info.bounding_box.h as f32;
 
             out.push(DrawCommand {
                 bitmap: bitmap,
                 bitmap_location: info.bounding_box,
-                draw_location: (x, y),
+                draw_location: (x, y - h),
             });
+
+            x += info.bounding_box.w as f32;
         }
         Ok(out)
     }

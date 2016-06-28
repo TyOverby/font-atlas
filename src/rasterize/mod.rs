@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::slice::Chunks;
 
 use super::glyph_packer;
-use super::rusttype;
+use super::rusttype::{self, Scale};
 use glyph_packer::{Packer, GrowingPacker};
 
 /// A single font loaded from a file.
@@ -35,6 +35,10 @@ pub struct CharInfo {
     /// The amount of (x, y) that the pen should move
     /// before drawing the character
     pub pre_draw_advance: (f32, f32),
+    /// The amount of y that the pen should move for drawing
+    /// this specific character.  This value gets reset after
+    /// drawing.
+    pub height_offset: f32,
 }
 
 /// A mapping from chars to CharInfo.
@@ -168,6 +172,7 @@ impl Font {
             },
             post_draw_advance: (h_metrics.advance_width, 0.0),
             pre_draw_advance: (h_metrics.left_side_bearing, 0.0),
+            height_offset: glyph.position().y,
         };
 
         Some((info, out))
@@ -180,7 +185,7 @@ impl Font {
     ///
     /// The resulting bitmap may be larger than width x height in order to
     /// fit all of the characters.
-    pub fn make_atlas<I: Iterator<Item=char>>(&self, i: I, scale: f32, margin: u32, width: usize, height: usize) -> (Atlas, Bitmap) {
+    pub fn make_atlas<I: Iterator<Item=char>>(&self, i: I, scale: f32, margin: u32, width: usize, height: usize) -> (Atlas, Bitmap, f32) {
         let mut atlas = Atlas { char_info: HashMap::new() };
         let mut packer = glyph_packer::SkylinePacker::new(Bitmap::new(width, height));
         packer.set_margin(margin);
@@ -200,7 +205,9 @@ impl Font {
                 panic!("can not renderer char {}", c);
             }
         }
-        (atlas, packer.into_buf())
+        let v_metrics = self.font.v_metrics(Scale::uniform(scale));
+        let line_height = v_metrics.ascent + v_metrics.descent + v_metrics.line_gap;
+        (atlas, packer.into_buf(), line_height)
     }
 }
 
