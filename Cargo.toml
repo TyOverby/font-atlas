@@ -1,7 +1,9 @@
 [package]
 name = "font-atlas"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Ty Overby <ty@pre-alpha.com>"]
+description = "A crate for generating font atlases for games or guis"
+license = "MIT"
 
 [dependencies]
 rusttype = "0.2.0"
