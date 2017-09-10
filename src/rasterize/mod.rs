@@ -107,14 +107,14 @@ impl glyph_packer::Buffer2d for Bitmap {
     fn get(&self, x: u32, y: u32) -> Option<Self::Pixel> {
         let x = x as usize;
         let y = y as usize;
-        let width = self.width() as usize();
+        let width = self.width() as usize;
         self.bytes.get(x + width * y).cloned()
     }
 
     fn set(&mut self, x: u32, y: u32, val: Self::Pixel) {
         let x = x as usize;
         let y = y as usize;
-        let width = self.width() as usize();
+        let width = self.width() as usize;
         if let Some(p) = self.bytes.get_mut(x + width * y) {
             *p = val;
         }
